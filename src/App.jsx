@@ -25,6 +25,8 @@ export default function App() {
         <span>VyomAcre</span>
         <span className="dot">·</span>
         <span>Lucknow</span>
+        <span className="dot">·</span>
+        <span title="build marker — if this is missing you are on an old deployment">v3</span>
       </footer>
     </div>
   );
