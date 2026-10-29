@@ -50,6 +50,9 @@ const AVAILABILITY = [
   ['later', 'Later'],
 ];
 
+const WA_NUMBER = '919335034238'; // business WhatsApp
+const WA_TEXT = 'Namaste VyomAcre! Maine website par form bhara hai.';
+
 const EMPTY = {
   asset_type: '',
   name: '',
@@ -184,29 +187,45 @@ export default function LeadForm() {
   }
 
   if (state === 'done') {
+    const waHref = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(
+      `${WA_TEXT} Reference: ${refId || '-'}`
+    )}`;
     return (
       <div className="card">
         <div className="done">
           <div className="tick">✓</div>
           <h2>Thank you — we have it.</h2>
           <p>
-            Our team will message you on WhatsApp within 24 hours to understand what you have
-            and explain the next step.
+            Your details are saved. Our team will message you on WhatsApp within 24 hours to
+            understand what you have and explain the next step.
           </p>
           {refId && <div className="ref">REFERENCE {refId}</div>}
-          <div>
-            <button
-              className="again"
-              onClick={() => {
-                setForm(EMPTY);
-                setErrors({});
-                setRefId('');
-                setState('idle');
-              }}
-            >
-              Add another one
-            </button>
-          </div>
+
+          <a
+            className="submit"
+            style={{ display: 'block', textDecoration: 'none', marginTop: 26 }}
+            href={waHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Message us on WhatsApp
+          </a>
+
+          <p className="formnote" style={{ marginTop: 10 }}>
+            +91 93350 34238 · usually replies the same day
+          </p>
+
+          <button
+            className="linkish"
+            onClick={() => {
+              setForm(EMPTY);
+              setErrors({});
+              setRefId('');
+              setState('idle');
+            }}
+          >
+            Register another property
+          </button>
         </div>
       </div>
     );

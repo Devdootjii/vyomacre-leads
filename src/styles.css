@@ -377,6 +377,20 @@ input.invalid { border-color: var(--danger); }
 }
 .again:hover { border-color: var(--green); color: var(--green); }
 
+/* quiet secondary action, so the WhatsApp button stays the obvious one */
+.linkish {
+  margin-top: 18px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: var(--body);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.linkish:hover { color: var(--grey); }
+
 /* ---------------- admin ---------------- */
 .admin-head {
   display: flex;
