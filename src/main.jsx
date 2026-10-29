@@ -8,3 +8,12 @@ createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+/* Remove the inline splash as soon as React has painted. */
+function dropBoot() {
+  const boot = document.getElementById('boot');
+  if (!boot) return;
+  boot.classList.add('gone');
+  setTimeout(() => boot.remove(), 320);
+}
+requestAnimationFrame(() => requestAnimationFrame(dropBoot));

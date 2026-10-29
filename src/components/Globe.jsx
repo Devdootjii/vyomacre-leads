@@ -7,12 +7,12 @@
 
 const R = 250; // radius in px
 
-const LATITUDES = [-60, -40, -20, 0, 20, 40, 60].map((deg) => {
+const LATITUDES = [-45, -15, 15, 45].map((deg) => {
   const rad = (deg * Math.PI) / 180;
   return { r: R * Math.cos(rad), y: -R * Math.sin(rad) };
 });
 
-const LONGITUDES = Array.from({ length: 8 }, (_, i) => i * 22.5);
+const LONGITUDES = Array.from({ length: 6 }, (_, i) => i * 30);
 
 export default function Globe({ dim = false }) {
   return (

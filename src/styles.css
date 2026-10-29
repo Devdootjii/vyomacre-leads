@@ -48,6 +48,8 @@ body {
   pointer-events: none;
   z-index: -1;
   opacity: 0.85;
+  will-change: transform;
+  contain: layout paint;
 }
 .globe.is-dim { opacity: 0.35; }
 
@@ -56,7 +58,6 @@ body {
   inset: -60px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(0, 229, 133, 0.10) 0%, rgba(0, 229, 133, 0.03) 45%, transparent 70%);
-  filter: blur(6px);
 }
 
 .globe-rotor {
@@ -64,6 +65,7 @@ body {
   inset: 0;
   transform-style: preserve-3d;
   animation: globeSpin 52s linear infinite;
+  will-change: transform;
 }
 
 .globe-lat,
@@ -104,7 +106,8 @@ body {
 @keyframes orbitDot { to { transform: rotate(360deg); } }
 
 @media (max-width: 720px) {
-  .globe { transform: translate(-50%, -50%) scale(1.45); opacity: 0.85; }
+  .globe { transform: translate(-50%, -50%) scale(1.45); opacity: 0.8; }
+  .globe-orbit { display: none; }
   .globe-orbit { display: none; }
 }
 
@@ -171,9 +174,9 @@ body {
 
 /* ---------------- card ---------------- */
 .card {
-  background: rgba(10, 20, 16, 0.72);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  /* solid instead of backdrop-filter: blurring the moving globe behind this
+     card re-composited every scroll frame and produced black flashes. */
+  background: rgba(9, 17, 14, 0.94);
   border: 1px solid var(--border);
   border-radius: 22px;
   padding: 30px 28px 28px;
@@ -443,6 +446,6 @@ input.invalid { border-color: var(--danger); }
 @media (max-width: 560px) {
   .app { padding: 18px 12px 14px; }
   /* the card is nearly full-width here, so let the globe glow through the glass */
-  .card { padding: 22px 18px; border-radius: 18px; background: rgba(8, 16, 13, 0.62); }
+  .card { padding: 22px 18px; border-radius: 18px; }
   .pill { font-size: 12.5px; padding: 8px 12px; }
 }
