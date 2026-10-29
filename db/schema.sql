@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS leads (
   phone         text NOT NULL UNIQUE,          -- one row per person
   city          text NOT NULL,
   city_zone     text NOT NULL,                 -- lucknow | outside
+  asset_type    text NOT NULL DEFAULT 'rooftop', -- rooftop | farmland | building | other
   lead_type     text NOT NULL,                 -- owner | developer | both
 
   intent        text NOT NULL,
@@ -30,5 +31,6 @@ CREATE TABLE IF NOT EXISTS leads (
 
 CREATE INDEX IF NOT EXISTS leads_priority_idx ON leads (priority, created_at DESC);
 CREATE INDEX IF NOT EXISTS leads_zone_idx     ON leads (city_zone, created_at DESC);
+CREATE INDEX IF NOT EXISTS leads_asset_idx    ON leads (asset_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS leads_status_idx   ON leads (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS leads_ip_idx       ON leads (ip, created_at DESC);

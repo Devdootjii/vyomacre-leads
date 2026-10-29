@@ -73,15 +73,15 @@ async function createLead(req, res) {
 
   const rows = await sql`
     INSERT INTO leads
-      (name, phone, city, city_zone, lead_type, intent, owns_building,
+      (name, phone, city, city_zone, asset_type, lead_type, intent, owns_building,
        area_bucket, roof_type, locality, use_cases, available, priority, source, ip)
     VALUES
-      (${clean.name}, ${clean.phone}, ${clean.city}, ${clean.city_zone}, ${clean.lead_type},
-       ${clean.intent}, ${clean.owns_building}, ${clean.area_bucket}, ${clean.roof_type},
-       ${clean.locality}, ${clean.use_cases}, ${clean.available}, ${clean.priority},
-       ${clean.source}, ${ip})
+      (${clean.name}, ${clean.phone}, ${clean.city}, ${clean.city_zone}, ${clean.asset_type},
+       ${clean.lead_type}, ${clean.intent}, ${clean.owns_building}, ${clean.area_bucket},
+       ${clean.roof_type}, ${clean.locality}, ${clean.use_cases}, ${clean.available},
+       ${clean.priority}, ${clean.source}, ${ip})
     ON CONFLICT (phone) DO NOTHING
-    RETURNING id, priority, city_zone
+    RETURNING id, priority, city_zone, asset_type
   `;
 
   if (!rows.length) {

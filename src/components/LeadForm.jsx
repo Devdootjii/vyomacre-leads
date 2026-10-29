@@ -1,4 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
+import { AREA_OPTIONS, AREA_LABELS } from '../../lib/categorise.js';
+
+const ASSETS = [
+  ['rooftop', 'Rooftop'],
+  ['farmland', 'Farmland'],
+  ['building', 'Building / plot'],
+  ['other', 'Something else'],
+];
 
 const CITIES = [
   ['Lucknow', 'Lucknow'],
@@ -9,8 +17,8 @@ const CITIES = [
 ];
 
 const INTENTS = [
-  ['rent_out', 'Rent out my roof'],
-  ['need_roof', 'I need a roof'],
+  ['rent_out', 'Rent it out'],
+  ['need_roof', 'I need one'],
   ['both', 'Both'],
 ];
 
@@ -19,13 +27,6 @@ const OWNERSHIP = [
   ['family', 'Family owned'],
   ['rented', 'Rented'],
   ['company', 'Company owned'],
-];
-
-const AREAS = [
-  ['under_1000', 'Under 1,000 sq ft'],
-  ['1000_3000', '1,000 – 3,000'],
-  ['3000_10000', '3,000 – 10,000'],
-  ['10000_plus', '10,000+ sq ft'],
 ];
 
 const ROOFS = [
@@ -50,6 +51,7 @@ const AVAILABILITY = [
 ];
 
 const EMPTY = {
+  asset_type: '',
   name: '',
   phone: '',
   city: '',
@@ -96,22 +98,37 @@ export default function LeadForm() {
   const formRef = useRef(null);
 
   const set = (k) => (v) => {
-    setForm((f) => ({ ...f, [k]: v }));
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+      // switching what you have resets the size, since the options differ
+      if (k === 'asset_type' && v !== f.asset_type) next.area_bucket = '';
+      return next;
+    });
     setErrors((e) => ({ ...e, [k]: undefined }));
   };
 
-  const phoneOk = useMemo(() => /^[6-9]\d{9}$/.test(form.phone.replace(/\D/g, '').slice(-10)), [form.phone]);
+  const isRoof = form.asset_type === 'rooftop';
+  const areaOptions = useMemo(
+    () => (AREA_OPTIONS[form.asset_type] || []).map((v) => [v, AREA_LABELS[v]]),
+    [form.asset_type]
+  );
+
+  const phoneOk = useMemo(
+    () => /^[6-9]\d{9}$/.test(form.phone.replace(/\D/g, '').slice(-10)),
+    [form.phone]
+  );
 
   function validate() {
     const e = {};
+    if (!form.asset_type) e.asset_type = 'Please pick one.';
     if (form.name.trim().length < 2) e.name = 'Please enter your name.';
     if (!phoneOk) e.phone = 'Enter a valid 10-digit mobile number.';
     if (!form.city) e.city = 'Please choose your city.';
-    if (!form.intent) e.intent = 'Please pick one.';
     if (!form.owns_building) e.owns_building = 'Please pick one.';
-    if (!form.area_bucket) e.area_bucket = 'Please choose the roof size.';
-    if (!form.roof_type) e.roof_type = 'Please choose the roof type.';
-    if (!form.available) e.available = 'Please pick one.';
+    if (!form.area_bucket) e.area_bucket = 'Please choose the size.';
+    if (isRoof && !form.roof_type) e.roof_type = 'Please choose the roof type.';
+    if (!form.intent) e.intent = 'Please pick one.';
+    if (isRoof && !form.available) e.available = 'Please pick one.';
     if (!form.consent) e.consent = 'Please tick the box so we can contact you.';
     return e;
   }
@@ -173,7 +190,7 @@ export default function LeadForm() {
           <div className="tick">✓</div>
           <h2>Thank you — we have it.</h2>
           <p>
-            Our team will message you on WhatsApp within 24 hours to understand your rooftop
+            Our team will message you on WhatsApp within 24 hours to understand what you have
             and explain the next step.
           </p>
           {refId && <div className="ref">REFERENCE {refId}</div>}
@@ -187,7 +204,7 @@ export default function LeadForm() {
                 setState('idle');
               }}
             >
-              Add another rooftop
+              Add another one
             </button>
           </div>
         </div>
@@ -205,7 +222,7 @@ export default function LeadForm() {
       <h1>List your rooftop</h1>
       <p className="lede">
         Solar companies, telecom towers and brands are looking for roof space in Lucknow.
-        Tell us about yours and we will check it.
+        Tell us what you have and we will check it.
       </p>
       <span className="promise">No advance · No commission · No hidden charges</span>
 
@@ -221,6 +238,20 @@ export default function LeadForm() {
             value={form.website}
             onChange={(e) => set('website')(e.target.value)}
           />
+        </div>
+
+        <div className="group" style={{ marginTop: 24 }}>
+          <div className="group-title">What do you have?</div>
+          <div className="field">
+            <Pills options={ASSETS} value={form.asset_type} onChange={set('asset_type')} />
+            {errors.asset_type && <span className="err">{errors.asset_type}</span>}
+            {!isRoof && form.asset_type && (
+              <p className="formnote" style={{ textAlign: 'left', marginTop: 10 }}>
+                We are starting with rooftops in Lucknow. Land and buildings are being collected
+                for our next phase — you will hear from us when we reach your city or category.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="group">
@@ -262,26 +293,35 @@ export default function LeadForm() {
           </div>
         </div>
 
+        {form.asset_type && (
         <div className="group">
-          <div className="group-title">About the roof</div>
+          <div className="group-title">About the {isRoof ? 'roof' : 'property'}</div>
 
           <div className="field">
-            <span className="label">Who owns the building?</span>
+            <span className="label">Who owns it?</span>
             <Pills options={OWNERSHIP} value={form.owns_building} onChange={set('owns_building')} />
             {errors.owns_building && <span className="err">{errors.owns_building}</span>}
           </div>
 
           <div className="field">
-            <span className="label">Roof area</span>
-            <Pills options={AREAS} value={form.area_bucket} onChange={set('area_bucket')} />
+            <span className="label">
+              {form.asset_type === 'farmland' ? 'How much land?' : 'Size'}
+            </span>
+            {areaOptions.length > 0 ? (
+              <Pills options={areaOptions} value={form.area_bucket} onChange={set('area_bucket')} />
+            ) : (
+              <p className="formnote" style={{ textAlign: 'left' }}>Choose above first.</p>
+            )}
             {errors.area_bucket && <span className="err">{errors.area_bucket}</span>}
           </div>
 
-          <div className="field">
-            <span className="label">Roof type</span>
-            <Pills options={ROOFS} value={form.roof_type} onChange={set('roof_type')} />
-            {errors.roof_type && <span className="err">{errors.roof_type}</span>}
-          </div>
+          {isRoof && (
+            <div className="field">
+              <span className="label">Roof type</span>
+              <Pills options={ROOFS} value={form.roof_type} onChange={set('roof_type')} />
+              {errors.roof_type && <span className="err">{errors.roof_type}</span>}
+            </div>
+          )}
 
           <div className="field">
             <label className="label" htmlFor="locality">Locality or address (optional)</label>
@@ -294,7 +334,9 @@ export default function LeadForm() {
             />
           </div>
         </div>
+        )}
 
+        {form.asset_type && (
         <div className="group">
           <div className="group-title">What you want</div>
 
@@ -304,17 +346,22 @@ export default function LeadForm() {
             {errors.intent && <span className="err">{errors.intent}</span>}
           </div>
 
-          <div className="field">
-            <span className="label">Best use (optional, pick any)</span>
-            <Pills options={USE_CASES} value={form.use_cases} onChange={set('use_cases')} multi />
-          </div>
+          {isRoof && (
+            <>
+              <div className="field">
+                <span className="label">Best use (optional, pick any)</span>
+                <Pills options={USE_CASES} value={form.use_cases} onChange={set('use_cases')} multi />
+              </div>
 
-          <div className="field">
-            <span className="label">Available from</span>
-            <Pills options={AVAILABILITY} value={form.available} onChange={set('available')} />
-            {errors.available && <span className="err">{errors.available}</span>}
-          </div>
+              <div className="field">
+                <span className="label">Available from</span>
+                <Pills options={AVAILABILITY} value={form.available} onChange={set('available')} />
+                {errors.available && <span className="err">{errors.available}</span>}
+              </div>
+            </>
+          )}
         </div>
+        )}
 
         <label className="consent">
           <input
@@ -323,8 +370,8 @@ export default function LeadForm() {
             onChange={(e) => set('consent')(e.target.checked)}
           />
           <span>
-            I agree to be contacted on WhatsApp about my rooftop. We use these details only for
-            this purpose and never sell them.
+            I agree to be contacted on WhatsApp about this. We use these details only for this
+            purpose and never sell them.
           </span>
         </label>
         {errors.consent && <span className="err">{errors.consent}</span>}

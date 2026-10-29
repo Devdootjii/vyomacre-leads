@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AREA_LABELS } from '../../lib/categorise.js';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'dead'];
+const ASSET_LABELS = {
+  rooftop: 'Rooftop',
+  farmland: 'Farmland',
+  building: 'Building',
+  other: 'Other',
+};
 
 function waLink(phone) {
   return `https://wa.me/91${phone}?text=${encodeURIComponent(
@@ -20,7 +27,7 @@ export default function Admin() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({ priority: '', zone: '', status: '' });
+  const [filters, setFilters] = useState({ priority: '', zone: '', status: '', asset: '' });
 
   const load = useCallback(
     async (adminKey = key) => {
@@ -29,7 +36,7 @@ export default function Admin() {
       setError('');
       try {
         const qs = new URLSearchParams();
-        Object.entries(filters).forEach(([k, v]) => v && qs.set(k, v));
+        ['priority', 'zone', 'status'].forEach((k) => filters[k] && qs.set(k, filters[k]));
         const res = await fetch(`/api/leads?${qs}`, { headers: { 'x-admin-key': adminKey } });
         if (res.status === 401) {
           setError('Wrong admin key.');
@@ -68,7 +75,7 @@ export default function Admin() {
 
   function exportCsv() {
     const cols = [
-      'created_at', 'name', 'phone', 'city', 'city_zone', 'priority', 'status',
+      'created_at', 'name', 'phone', 'city', 'city_zone', 'asset_type', 'priority', 'status',
       'lead_type', 'owns_building', 'area_bucket', 'roof_type', 'locality',
       'use_cases', 'available', 'source', 'notes',
     ];
@@ -80,6 +87,16 @@ export default function Admin() {
     a.click();
     URL.revokeObjectURL(a.href);
   }
+
+  const stats = useMemo(() => {
+    const s = { A: 0, B: 0, C: 0, rooftop: 0, farmland: 0, building: 0, other: 0 };
+    leads.forEach((l) => {
+      if (s[l.priority] !== undefined) s[l.priority] += 1;
+      const a = l.asset_type || 'rooftop';
+      if (s[a] !== undefined) s[a] += 1;
+    });
+    return s;
+  }, [leads]);
 
   if (!key) {
     return (
@@ -115,14 +132,6 @@ export default function Admin() {
     );
   }
 
-  const counts = leads.reduce(
-    (acc, l) => {
-      acc[l.priority] = (acc[l.priority] || 0) + 1;
-      return acc;
-    },
-    {}
-  );
-
   return (
     <div>
       <div className="admin-head">
@@ -135,9 +144,16 @@ export default function Admin() {
 
       <div className="statrow">
         <div className="stat"><b>{total}</b><span>Total</span></div>
-        <div className="stat"><b>{counts.A || 0}</b><span>Priority A</span></div>
-        <div className="stat"><b>{counts.B || 0}</b><span>Priority B</span></div>
-        <div className="stat"><b>{counts.C || 0}</b><span>Waitlist</span></div>
+        <div className="stat"><b>{stats.A}</b><span>Priority A</span></div>
+        <div className="stat"><b>{stats.B}</b><span>Priority B</span></div>
+        <div className="stat"><b>{stats.C}</b><span>Waitlist</span></div>
+      </div>
+
+      <div className="statrow">
+        <div className="stat"><b>{stats.rooftop}</b><span>Rooftop</span></div>
+        <div className="stat"><b>{stats.farmland}</b><span>Farmland</span></div>
+        <div className="stat"><b>{stats.building}</b><span>Building</span></div>
+        <div className="stat"><b>{stats.other}</b><span>Other</span></div>
       </div>
 
       <div className="filters">
@@ -150,6 +166,17 @@ export default function Admin() {
             {p ? `Priority ${p}` : 'All priority'}
           </button>
         ))}
+        {[['', 'All types'], ['rooftop', 'Rooftop'], ['farmland', 'Farmland'], ['building', 'Building'], ['other', 'Other']].map(
+          ([a, label]) => (
+            <button
+              key={`a${a}`}
+              className={`pill${filters.asset === a ? ' on' : ''}`}
+              onClick={() => setFilters((f) => ({ ...f, asset: a }))}
+            >
+              {label}
+            </button>
+          )
+        )}
         {[['', 'All cities'], ['lucknow', 'Lucknow'], ['outside', 'Outside']].map(([z, label]) => (
           <button
             key={`z${z}`}
@@ -174,41 +201,48 @@ export default function Admin() {
       {loading && <p className="formnote">Loading…</p>}
       {!loading && !leads.length && <p className="formnote">No leads match these filters.</p>}
 
-      {leads.map((l) => (
-        <div className="lead" key={l.id}>
-          <div className="lead-top">
-            <div>
-              <div className="lead-name">{l.name}</div>
-              <div className="lead-meta">
-                {l.phone} · {l.city} · {new Date(l.created_at).toLocaleString('en-IN')}
+      {leads
+        .filter((l) => !filters.asset || (l.asset_type || 'rooftop') === filters.asset)
+        .map((l) => (
+          <div className="lead" key={l.id}>
+            <div className="lead-top">
+              <div>
+                <div className="lead-name">{l.name}</div>
+                <div className="lead-meta">
+                  {l.phone} · {l.city} · {new Date(l.created_at).toLocaleString('en-IN')}
+                </div>
               </div>
+              <span className={`badge ${l.priority}`}>{l.priority}</span>
             </div>
-            <span className={`badge ${l.priority}`}>{l.priority}</span>
-          </div>
 
-          <div className="lead-row">
-            <span className="tag">{l.lead_type}</span>
-            <span className="tag">{l.area_bucket}</span>
-            <span className="tag">{l.roof_type}</span>
-            <span className="tag">owns: {l.owns_building}</span>
-            <span className="tag">{l.available}</span>
-            {l.use_cases && <span className="tag">{l.use_cases}</span>}
-            <span className="tag">status: {l.status}</span>
-            <span className="tag">via {l.source}</span>
-          </div>
+            <div className="lead-row">
+              <span className="tag" style={{ color: '#00E585', borderColor: 'rgba(0,229,133,.35)' }}>
+                {ASSET_LABELS[l.asset_type || 'rooftop'] || l.asset_type}
+              </span>
+              <span className="tag">{l.lead_type}</span>
+              <span className="tag">{AREA_LABELS[l.area_bucket] || l.area_bucket}</span>
+              {l.roof_type ? <span className="tag">{l.roof_type}</span> : null}
+              <span className="tag">owns: {l.owns_building}</span>
+              {l.available && l.available !== 'unknown' ? (
+                <span className="tag">{l.available}</span>
+              ) : null}
+              {l.use_cases && <span className="tag">{l.use_cases}</span>}
+              <span className="tag">status: {l.status}</span>
+              <span className="tag">via {l.source}</span>
+            </div>
 
-          <div className="lead-actions">
-            <a className="mini wa" href={waLink(l.phone)} target="_blank" rel="noreferrer">
-              WhatsApp
-            </a>
-            {STATUSES.filter((s) => s !== l.status).map((s) => (
-              <button key={s} className="mini" onClick={() => setStatus(l.id, s)}>
-                {s}
-              </button>
-            ))}
+            <div className="lead-actions">
+              <a className="mini wa" href={waLink(l.phone)} target="_blank" rel="noreferrer">
+                WhatsApp
+              </a>
+              {STATUSES.filter((s) => s !== l.status).map((s) => (
+                <button key={s} className="mini" onClick={() => setStatus(l.id, s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </div>
   );
 }

@@ -16,13 +16,18 @@ Every lead is classified the moment it arrives, so nobody has to sort a spreadsh
 
 | Field | Derived from |
 |---|---|
+| `asset_type` | rooftop / farmland / building / other (asked first, changes the rest of the form) |
 | `city_zone` | `lucknow` if city is Lucknow, else `outside` |
 | `lead_type` | `owner` / `developer` / `both` |
 | `priority` | `A` call today · `B` this week · `C` waitlist |
 
 **A** = Lucknow + own building + 3,000 sq ft or more + available now
 **B** = Lucknow + own building + smaller roof, or a big rented roof
-**C** = outside Lucknow, or small, or "later"
+**C** = outside Lucknow, or small, or "later", or **anything that is not a rooftop**
+
+Farmland and buildings are collected as demand signal only — they go to the waitlist
+until we can actually serve them. The admin panel shows the rooftop / farmland /
+building split so you can see what people are actually asking for.
 
 Developers (people who *need* a roof) are always A or B — they are the paying side and they travel.
 
@@ -32,7 +37,17 @@ Developers (people who *need* a roof) are always A or B — they are the paying 
 
 ### 1. Create the table
 
-Open your Neon project → **SQL Editor** → paste `db/schema.sql` → Run.
+**Fresh database:** open your Neon project → **SQL Editor** → paste `db/schema.sql` → Run.
+
+**Existing database (created before asset types):** run this one line instead —
+
+```sql
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS asset_type text NOT NULL DEFAULT 'rooftop';
+CREATE INDEX IF NOT EXISTS leads_asset_idx ON leads (asset_type, created_at DESC);
+```
+
+(or paste `db/migrate-001-asset-type.sql`). **Without this column every submission
+returns a 500.**
 
 Or from a terminal:
 
