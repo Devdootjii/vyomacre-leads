@@ -1,94 +1,116 @@
-# VyomAcre — Lead capture
+# VyomAcre — Leads
 
-Rooftop lead form + admin panel + serverless API. One Vercel project, one Neon table.
+Lead capture for VyomAcre: a public form, an admin panel, and a serverless API.
+One Vercel project, one Postgres table.
 
-```
-POST   /api/leads    public   the form submits here
-GET    /api/leads    admin    list + filter (header: x-admin-key)
-PATCH  /api/leads    admin    change status
-```
+**Live:** https://vyomacre-leads.vercel.app · **Admin:** `/admin`
 
 ---
 
-## What it does on submit
+## What it does
 
-Every lead is classified the moment it arrives, so nobody has to sort a spreadsheet:
+Someone fills the form (from a reel, an Instagram bio, or a WhatsApp reply).
+The moment it is submitted, the lead is classified — nobody has to sort a
+spreadsheet later.
 
-| Field | Derived from |
+| Field | How it is decided |
 |---|---|
-| `asset_type` | rooftop / farmland / building / other (asked first, changes the rest of the form) |
-| `city_zone` | `lucknow` if city is Lucknow, else `outside` |
-| `lead_type` | `owner` / `developer` / `both` |
-| `priority` | `A` call today · `B` this week · `C` waitlist |
+| `asset_type` | Asked first: `rooftop` / `farmland` / `building` / `other`. Changes the rest of the form. |
+| `city_zone` | `lucknow` if the city is Lucknow, otherwise `outside` |
+| `lead_type` | `owner` (rent it out) / `developer` (needs one) / `both` |
+| `priority` | `A` call today · `B` call this week · `C` waitlist |
 
-**A** = Lucknow + own building + 3,000 sq ft or more + available now
-**B** = Lucknow + own building + smaller roof, or a big rented roof
-**C** = outside Lucknow, or small, or "later", or **anything that is not a rooftop**
+**The priority rules, in plain words**
 
-Farmland and buildings are collected as demand signal only — they go to the waitlist
-until we can actually serve them. The admin panel shows the rooftop / farmland /
-building split so you can see what people are actually asking for.
+- **A** — Lucknow, owns the building, 3,000 sq ft or more, available now. Call today.
+- **B** — Lucknow, owns it, smaller roof; or a big rented roof; or a developer ready to move.
+- **C** — outside Lucknow, or a small roof, or "later", or **anything that is not a rooftop**.
 
-Developers (people who *need* a roof) are always A or B — they are the paying side and they travel.
+Farmland and buildings are collected as demand signal only. They go to the
+waitlist until we can actually serve them — but the admin panel shows the
+rooftop / farmland / building split, so the next vertical is chosen from data
+rather than a guess.
+
+Developers are always A or B: they are the paying side and they travel to a
+good site. Owners cannot move their roof, so an owner we cannot visit is a
+number, not a lead.
 
 ---
 
-## Setup (about 10 minutes)
+## The three screens
 
-### 1. Create the table
+**`/` — the form.** Mobile-first, dark, same design language as the main
+VyomAcre site. Asks what you have first, then only the questions that make
+sense for it. Rooftops get roof type, best use and availability; farmland gets
+acreage; buildings get a size band.
 
-**Fresh database:** open your Neon project → **SQL Editor** → paste `db/schema.sql` → Run.
+**`/admin` — the leads board.** Enter the admin key once (kept in
+sessionStorage for the tab). Shows totals, the priority split and the asset
+split; filters by priority, asset type, city and status; a WhatsApp button per
+lead that opens a pre-filled chat; status buttons; and a CSV export.
 
-**Existing database (created before asset types):** run this one line instead —
+**After submit** — a thank-you screen with a reference id and a single green
+button that opens WhatsApp to `+91 93350 34238` with the reference already in
+the message. "Register another property" is a quiet link underneath, not the
+main action.
+
+---
+
+## API
+
+```
+POST   /api/leads    public   create a lead
+GET    /api/leads    admin    list, with ?priority= &zone= &status=
+PATCH  /api/leads    admin    { id, status }  status: new|contacted|qualified|dead
+```
+
+Admin routes need the header `x-admin-key`.
+
+`POST` returns:
+
+- `201 { ok, id, priority, city_zone, asset_type }` — created
+- `409 duplicate_phone` — this number is already registered
+- `422 validation_failed` with a `errors` map — field by field
+- `429 too_many_requests` — more than 6 submissions from one IP in an hour
+- `500 server_error` — usually `DATABASE_URL` missing or the table not created
+
+A hidden honeypot field (`website`) quietly swallows bots.
+
+---
+
+## Setup
+
+### 1. Database
+
+Fresh database — Neon → SQL Editor → paste `db/schema.sql` → Run.
+
+Database created before asset types existed — run `db/migrate-001-asset-type.sql`
+instead. **Without that column every submission returns 500.**
 
 ```sql
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS asset_type text NOT NULL DEFAULT 'rooftop';
 CREATE INDEX IF NOT EXISTS leads_asset_idx ON leads (asset_type, created_at DESC);
 ```
 
-(or paste `db/migrate-001-asset-type.sql`). **Without this column every submission
-returns a 500.**
-
-Or from a terminal:
-
-```bash
-psql "$DATABASE_URL" -f db/schema.sql
-```
-
-### 2. Push this folder to GitHub
-
-```bash
-git init
-git add .
-git commit -m "VyomAcre lead capture"
-git branch -M main
-git remote add origin https://github.com/<your-username>/vyomacre-leads.git
-git push -u origin main
-```
-
-### 3. Import to Vercel
-
-1. vercel.com → **Add New → Project** → import the repo
-2. Framework preset: **Vite** (auto-detected)
-3. Before deploying, open **Environment Variables** and add:
+### 2. Environment variables (Vercel → Settings → Environment Variables)
 
 | Name | Value |
 |---|---|
-| `DATABASE_URL` | your Neon connection string (`postgresql://...?sslmode=require`) |
-| `ADMIN_KEY` | a long random string |
+| `DATABASE_URL` | Neon connection string, `postgresql://…?sslmode=require` |
+| `ADMIN_KEY` | a long random string — this is the only thing protecting the leads list |
 
-Generate a key with:
+Generate a key:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-4. Deploy.
+Changing `ADMIN_KEY` needs a **redeploy** before the function picks it up.
 
-### 4. Check it
+### 3. Deploy
 
-- Form: `https://<project>.vercel.app/`
-- Admin: `https://<project>.vercel.app/admin` (paste the `ADMIN_KEY`)
+Vercel → Add New → Project → import this repo → framework preset **Vite** →
+add the two variables → Deploy.
 
 ---
 
@@ -96,30 +118,30 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 
 ```bash
 npm install
-npm test          # tests the classification logic
+npm test          # 9 tests over the classification logic
 npm run dev       # UI on http://localhost:5174
 ```
 
-`npm run dev` alone will not serve `/api` — the form will show "could not submit".
-For a full local stack install the Vercel CLI and run `vercel dev`.
+`npm run dev` does not serve `/api`, so the form will say "could not submit".
+For the full stack install the Vercel CLI and run `vercel dev`.
 
 ---
 
-## Using it
+## Daily use
 
-- Put the form link in the reel description, Instagram bio, and the WhatsApp
-  greeting message.
-- Each morning: open `/admin`, filter **Priority A**, and WhatsApp those people.
-- Mark each lead `contacted` → `qualified` → `dead` as you go.
-- **Export CSV** whenever you want the data in Sheets.
+1. Morning: open `/admin`, filter **Priority A**, message those people on WhatsApp.
+2. Mark each lead `contacted` → `qualified` → `dead` as you go.
+3. Once a week: count what came in, and how much of it was farmland or buildings.
+4. Export CSV whenever the data needs to live in Sheets.
 
 ---
 
 ## Notes
 
-- One row per phone number. A second submission returns `409` and the form tells
-  the person they are already registered.
-- Honeypot field + 6 submissions per IP per hour.
-- Consent checkbox is required — the number is personal data under the DPDP Act,
-  so the form states what it is used for and that it is never sold.
-- If you later move off Neon, any Postgres works; only `DATABASE_URL` changes.
+- One row per phone number — a second submission returns `409` and the person is
+  told they are already registered.
+- The consent checkbox is required. The phone number is personal data under the
+  DPDP Act, so the form states what it is used for and that it is never sold.
+- The form link belongs in three places: the reel description, the Instagram
+  bio, and the WhatsApp Business greeting message.
+- Any Postgres works — only `DATABASE_URL` changes.
